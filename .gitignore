@@ -1,0 +1,8 @@
+bin/
+develop-eggs/
+*.egg-info/
+.installed.cfg
+*.pyc
+.externalToolBuilders/
+.project
+.pydevproject*
