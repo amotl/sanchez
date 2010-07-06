@@ -21,8 +21,12 @@ hdiutil detach /Volumes/dpkt-1.7-py2.6-macosx10.6/
 sudo ln -s /Library/Python/2.6/site-packages/dpkt /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/dpkt
 
 
-# C. install "sanchez"
-sudo ./bin/buildout setup . install  --script-dir=/opt/local/bin
+# C. install "sanchez" to buildout (./bin/sanchez)
+./bin/buildout -vvvvN
+
+
+# D. install "sanchez" system-wide
+sudo ./bin/buildout setup . install --script-dir=/usr/local/bin
 
 
 

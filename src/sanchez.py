@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# safety runner, if step C. from normal installation fails (see INSTALL.rst)
+# safety runner, if steps C. or D. from normal installation fail (see INSTALL.rst)
 
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))

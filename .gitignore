@@ -4,5 +4,6 @@ develop-eggs/
 .installed.cfg
 *.pyc
 .externalToolBuilders/
+.settings/
 .project
 .pydevproject*
