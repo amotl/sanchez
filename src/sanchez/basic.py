@@ -1,33 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import types
+# basic blueprint from pynids Example [$Id: Example,v 1.3 2005/01/27 04:53:45 mjp Exp $]
 
+import os, sys
+import types
+import nids
 import dpkt
-import pcap
 
 from sanchez.utils import ansi
-
-def tcp_flags(flags):
-    ret = ''
-    if flags & dpkt.tcp.TH_FIN:
-        ret = ret + 'F'
-    if flags & dpkt.tcp.TH_SYN:
-        ret = ret + 'S'
-    if flags & dpkt.tcp.TH_RST:
-        ret = ret + 'R'
-    if flags & dpkt.tcp.TH_PUSH:
-        ret = ret + 'P'
-    if flags & dpkt.tcp.TH_ACK:
-        ret = ret + 'A'
-    if flags & dpkt.tcp.TH_URG:
-        ret = ret + 'U'
-    if flags & dpkt.tcp.TH_ECE:
-        ret = ret + 'E'
-    if flags & dpkt.tcp.TH_CWR:
-        ret = ret + 'C'
-
-    return ret
 
 
 def decode_ip(ip_bytes):
@@ -36,6 +17,32 @@ def decode_ip(ip_bytes):
         octet_parts.append(str(ord(byte)))
     octet = '.'.join(octet_parts)
     return octet
+
+
+TCP_END_STATES = (nids.NIDS_CLOSE, nids.NIDS_TIMEOUT, nids.NIDS_RESET)
+
+def tcp_stream_handler(tcp):
+
+    print "tcps -", str(tcp.addr), " state:", tcp.nids_state
+    if tcp.nids_state == nids.NIDS_JUST_EST:
+        # new to us, but do we care?
+        ((src, sport), (dst, dport)) = tcp.addr
+        print tcp.addr
+        if True or dport in (80, 8000, 8080, 8181):
+            print "collecting..."
+            tcp.client.collect = 1
+            tcp.server.collect = 1
+
+    elif tcp.nids_state == nids.NIDS_DATA:
+        # keep all of the stream's new data
+        tcp.discard(0)
+
+    elif tcp.nids_state in TCP_END_STATES:
+        print "addr:", tcp.addr
+        print "To server:"
+        print tcp.server.data[:tcp.server.count] # WARNING - may be binary
+        print "To client:"
+        print tcp.client.data[:tcp.client.count] # WARNING - as above
 
 
 # reassembles TCP flows before decoding HTTP
@@ -177,11 +184,36 @@ def decode_http(ip, conn):
         print "UnpackError:", e
         pass
 
+def drop_root_privileges():
+    # TODO: frop root privileges
+    """
+    import pwd
+    NOTROOT = "nobody"   # edit to taste
+    print "dropping root privileges"
+    #print pwd.getpwnam(NOTROOT)
+    #(uid, gid) = pwd.getpwnam(NOTROOT)[2:4]
+    uid = 99
+    gid = 99
+    #print uid, gid
+    os.setgroups([gid,])
+    os.setgid(gid)
+    os.setuid(uid)
+    if 0 in [os.getuid(), os.getgid()] + list(os.getgroups()):
+        print "error - drop root, please!"
+        sys.exit(1)
+    """
+
 
 def main():
 
-    #pc = pcap.pcap()
-    pc = pcap.pcap('lo0')
+    #nids.param("pcap_filter", "tcp and port 8181")      # bpf restrict to TCP only, note
+                                                        # libnids caution about fragments
+    nids.chksum_ctl([('0.0.0.0/0', False)])             # disable checksumming
+    #nids.param("scan_num_hosts", 0)                    # disable portscan detection
+
+    #nids.param("filename", sys.argv[1])                # read a pcap file?
+    nids.param("device", sys.argv[1])                   # read directly from device
+
 
     # apply BPF filter
     # captures all IPv4 HTTP packets to and from port 80, i.e. only packets that
@@ -190,7 +222,12 @@ def main():
     #pc.setfilter('tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
     #pc.setfilter('host netfrag.org and tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
     #pc.setfilter('host 178.63.253.130 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
-    pc.setfilter('(port 8181 or port 8080) and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
+    #pc.setfilter('(port 8181 or port 8080) and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
+    nids.param('pcap_filter', '(port 8181 or port 8080)')
+
+    nids.init()
+
+    drop_root_privileges()
 
     ansi.echo("@@ bold")
     ansi.echo("red")
@@ -198,19 +235,16 @@ def main():
     ansi.echo()
     print
 
-    conn = dict() # Connections with current buffer (for reassembling TCP flows)
-    for ts, pkt in pc:
+    nids.register_tcp(tcp_stream_handler)
 
-        #eth = dpkt.ethernet.Ethernet(pkt)
-        #if eth.type != dpkt.ethernet.ETH_TYPE_IP:
-        #    print "ERROR: Could not decode ethernet packet (type=%s)" % hex(eth.type)
-        #    return
-        #ip = eth.data
-
-        loop = dpkt.loopback.Loopback(pkt)
-        ip = loop.data
-
-        decode_http(ip, conn)
+    # Loop forever (network device), or until EOF (pcap file)
+    # Note that an exception in the callback will break the loop!
+    try:
+        nids.run()
+    except nids.error, e:
+        print "nids/pcap error:", e
+    except Exception, e:
+        print "misc. exception (runtime error in user callback?):", e
 
 
 if __name__ == '__main__':
