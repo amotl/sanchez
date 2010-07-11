@@ -1,12 +1,54 @@
 Installation guidelines for Mac OS X
 ====================================
 
+Prerequisites
+-------------
+
+IS
+--
+
+wget http://jon.oberheide.org/pynids/downloads/pynids-0.6.1.tar.gz
+tar -xzf pynids-0.6.1.tar.gz
+cd pynids-0.6.1
+python setup.py build
+sudo python setup.py install
+
+$ python
+Python 2.6.5 (r265:79063, Jun 22 2010, 15:23:56)
+[GCC 4.2.1 (Apple Inc. build 5646)] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import nids
+>>> nids.__file__
+'/opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/nidsmodule.so'
+
+
+Notes
+-----
+
+We absolutely need v0.6.1, since this version brings an important feature which is required
+for capturing traffic on Mac OS X' loopback interface (lo0):
+
+    nids.chksum_ctl([('0.0.0.0/0', False)]) # disable checksumming
+
+See Changelog
+This pynids distribution is an updated version of Michael Pomraning's 0.5 series.
+The 0.6 series brings updates to the bundled version of libnids (from 1.19 to 1.24),
+checksum disabling, packet timestamps, pcap stats, and a variety of fixes.
+
+
+
+
+
+WAS (old/deprecated)
+--------------------
+
+
 # A. install "pypcap" module
 svn checkout http://pypcap.googlecode.com/svn/trunk/ pypcap-read-only
 cd pypcap-read-only
 python setup.py config
 python setup.py build
-sudo python setup.py install 
+sudo python setup.py install
 
 
 # B. install "dpkt" module

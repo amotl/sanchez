@@ -21,168 +21,119 @@ def decode_ip(ip_bytes):
 
 TCP_END_STATES = (nids.NIDS_CLOSE, nids.NIDS_TIMEOUT, nids.NIDS_RESET)
 
-def tcp_stream_handler(tcp):
+def tcp_stream_handler(tcp, *more):
 
-    print "tcps -", str(tcp.addr), " state:", tcp.nids_state
+    #print "tcps -", str(tcp.addr), " state:", tcp.nids_state
+
+    #print "more:", more
+
     if tcp.nids_state == nids.NIDS_JUST_EST:
+        print "get_pkt_ts-est:", nids.get_pkt_ts(), str(tcp.addr)
         # new to us, but do we care?
         ((src, sport), (dst, dport)) = tcp.addr
-        print tcp.addr
+        #print tcp.addr
         if True or dport in (80, 8000, 8080, 8181):
             print "collecting..."
             tcp.client.collect = 1
             tcp.server.collect = 1
 
     elif tcp.nids_state == nids.NIDS_DATA:
+        #print "get_pkt_ts-dat:", nids.get_pkt_ts()
         # keep all of the stream's new data
         tcp.discard(0)
 
     elif tcp.nids_state in TCP_END_STATES:
-        print "addr:", tcp.addr
-        print "To server:"
-        print tcp.server.data[:tcp.server.count] # WARNING - may be binary
-        print "To client:"
-        print tcp.client.data[:tcp.client.count] # WARNING - as above
+        print "get_pkt_ts-end:", nids.get_pkt_ts(), str(tcp.addr)
+        #print dir(tcp)
+        #print dir(tcp.server)
+        #print dir(tcp.client)
+        request_raw   = tcp.server.data[:tcp.server.count]
+        response_raw  = tcp.client.data[:tcp.client.count]
+        #print dir(tcp.server)
+        request_http = response_http = None
+        try:
+            request_http  = dpkt.http.Request(request_raw)
+            response_http = dpkt.http.Response(response_raw)
+        except dpkt.UnpackError, e:
+            print "dpkt.UnpackError (problem decoding http):", e
+
+        if not filter_accept(tcp.addr, request_http, response_http):
+            return
+
+        print_header(tcp.addr, request = True)
+        #return
+
+        print request_http
+        print_header(tcp.addr, response = True)
+        print_response(response_http)
+        print
 
 
-# reassembles TCP flows before decoding HTTP
-def decode_http(ip, conn):
+def filter_accept(tcp, request, response):
+    return \
+        'json' in request.headers.get('accept', '').lower() \
+        or \
+        'json' in response.headers.get('content-type', '').lower()
 
-    if type(ip) is types.StringType:
-        print "ERROR: Could not decode ip packet"
-        #print "string:", ip
-        return
 
-    if ip.p != dpkt.ip.IP_PROTO_TCP:
-        return
+def print_header(addr, request = False, response = False):
+    label = "UNKNOWN"
+    direction = '-'
+    ((source_ip, source_port), (target_ip, target_port)) = addr
+    if request:
+        label = "REQUEST: "
+        direction = '->'
+    elif response:
+        label = "RESPONSE:"
+        direction = '<-'
+    conversation_header = '%s %s:%s %s %s:%s' % (label, source_ip, source_port, direction, target_ip, target_port)
 
-    tcp = ip.data
+    ansi.echo("blue bold underline")
+    print conversation_header
+    ansi.echo()
 
-    tupl = (ip.src, ip.dst, tcp.sport, tcp.dport)
-    #print tupl, tcp_flags(tcp.flags)
 
-    # Ensure these are in order! TODO change to a defaultdict
-    if tupl in conn:
-        conn[tupl] = conn[tupl] + tcp.data
+def print_response(response):
+
+    if int(response.status) < 400:
+        ansi.echo("green")
     else:
-        conn[tupl] = tcp.data
+        ansi.echo("red")
+    print '%s/%s %s %s' % ('HTTP', response.version, response.status, response.reason)
+    ansi.echo()
+    print response.pack_hdr()
 
-    # TODO Check if it is a FIN, if so end the connection
+    body = response.body
+    if 'gzip' in response.headers.get('content-encoding', ''):
+        import StringIO
+        import gzip
+        gzipper = gzip.GzipFile(fileobj = StringIO.StringIO(body))
+        body = gzipper.read()
 
-    # Try and parse what we have
-    try:
-        stream = conn[tupl]
-        http = None
-        request = False
-        response = False
-        if stream[:4] == 'HTTP':
-            http = dpkt.http.Response(stream)
-            response = True
-            #print http.status
-            #print http.body
-        else:
-            http = dpkt.http.Request(stream)
-            request = True
-            #print http.method, http.uri
-
-        #print tupl
-        if http:
-            #print tupl, tcp_flags(tcp.flags)
-
-
-            # filter
-            #print "ct:", http.headers.get('content-type', '').lower()
-            output = False
-            if request and 'json' in http.headers.get('accept', '').lower():
-                output = True
-            elif response and 'json' in http.headers.get('content-type', '').lower():
-                output = True
-            if not output:
-                return
-
-
-            # format message header
-            ip_source = decode_ip(ip.src)
-            ip_target = decode_ip(ip.dst)
-            #print "source:", ip_source
-            #print "target:", ip_target
-            direction = '-'
-            if request:
-                direction = '->'
-                conversation_header = 'REQUEST:  %s:%s %s %s:%s' % (ip_source, tcp.sport, direction, ip_target, tcp.dport)
-            elif response:
-                direction = '<-'
-                conversation_header = 'RESPONSE: %s:%s %s %s:%s' % (ip_target, tcp.dport, direction, ip_source, tcp.sport)
-
-
-            # output message header
-            ansi.echo("blue bold underline")
-            print "%s [%s]" % (conversation_header, tcp_flags(tcp.flags))
+    if 'json' in response.headers.get('content-type', '').lower():
+        try:
+            import json
+            decoded = json.loads(body)
+            #from pprint import pprint
+            #pprint(decoded)
+            #pretty = json.dumps(decoded, sort_keys=True, indent=4)
+            pretty = json.dumps(decoded, sort_keys=False, indent=4)
+            ansi.echo("green Pretty:")
             ansi.echo()
-            #print http
-
-
-            # output/decode details
-            if request:
-
-                #print '%s %s %s/%s' % (http.method, http.uri, http.__proto, http.version)
-                print http
-
-            elif response:
-
-                if int(http.status) < 400:
-                    ansi.echo("green")
-                else:
-                    ansi.echo("red")
-                print '%s/%s %s %s' % ('HTTP', http.version, http.status, http.reason)
-                ansi.echo()
-                print http.pack_hdr()
-
-                body = http.body
-                if 'gzip' in http.headers.get('content-encoding', ''):
-                    import StringIO
-                    import gzip
-                    gzipper = gzip.GzipFile(fileobj = StringIO.StringIO(body))
-                    body = gzipper.read()
-
-                if 'json' in http.headers.get('content-type', '').lower():
-                    try:
-                        import json
-                        decoded = json.loads(body)
-                        #from pprint import pprint
-                        #pprint(decoded)
-                        #pretty = json.dumps(decoded, sort_keys=True, indent=4)
-                        pretty = json.dumps(decoded, sort_keys=False, indent=4)
-                        ansi.echo("green Pretty:")
-                        ansi.echo()
-                        print pretty
-                        #ansi.echo("@50;40")
-                        #print pretty
-                        print
-
-                        ansi.echo("green Decoded:")
-                        ansi.echo()
-                        print "hello world!"
-
-                    except Exception, e:
-                        ansi.echo("red ERROR: Could not decode json (%s)" % e)
-                        ansi.echo()
-                        print "Raw body was:"
-                        print body
-
-
+            print pretty
+            #ansi.echo("@50;40")
+            #print pretty
             print
 
+            ansi.echo("green Decoded:")
+            ansi.echo()
+            print "hello world!"
 
-        # If we reached this part an exception hasn't been thrown
-        stream = stream[len(http):]
-        if len(stream) == 0:
-            del conn[tupl]
-        else:
-            conn[tupl] = stream
-    except dpkt.UnpackError, e:
-        print "UnpackError:", e
-        pass
+        except Exception, e:
+            ansi.echo("red ERROR: Could not decode json (%s)" % e)
+            ansi.echo()
+            print "Raw body was:"
+            print body
 
 def drop_root_privileges():
     # TODO: frop root privileges
@@ -206,10 +157,15 @@ def drop_root_privileges():
 
 def main():
 
+    if len(sys.argv) == 1:
+        print "ERROR: Please specify network interface to listen on (e.g. lo0, en0, en1, ...)"
+        sys.exit(1)
+
     #nids.param("pcap_filter", "tcp and port 8181")      # bpf restrict to TCP only, note
                                                         # libnids caution about fragments
     nids.chksum_ctl([('0.0.0.0/0', False)])             # disable checksumming
-    #nids.param("scan_num_hosts", 0)                    # disable portscan detection
+    nids.param("scan_delay", 60 * 1000)                 # disable portscan detection
+    nids.param("scan_num_hosts", 0)                     # disable portscan detection
 
     #nids.param("filename", sys.argv[1])                # read a pcap file?
     nids.param("device", sys.argv[1])                   # read directly from device
@@ -223,7 +179,7 @@ def main():
     #pc.setfilter('host netfrag.org and tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
     #pc.setfilter('host 178.63.253.130 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
     #pc.setfilter('(port 8181 or port 8080) and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
-    nids.param('pcap_filter', '(port 8181 or port 8080)')
+    nids.param('pcap_filter', 'tcp and (port 8181 or port 8080)')
 
     nids.init()
 
