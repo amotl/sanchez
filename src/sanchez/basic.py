@@ -42,6 +42,7 @@ class Receiver():
 
             print_header(addr, request = True)
             print_request(request_http, response_http)
+            print
 
             print_header(addr, response = True)
             print_response(request_http, response_http)
@@ -84,7 +85,8 @@ def print_request(request, response):
 
     # pretty print post data
     if request.method == 'POST':
-        ansi.echo("green POST data:")
+        ansi.echo("underline POST payload (pretty):")
+        ansi.echo()
         body = request.body
         post_parts = body.split('&')
         for part in post_parts:
@@ -106,8 +108,14 @@ def print_response(request, response):
     if 'gzip' in response.headers.get('content-encoding', ''):
         import StringIO
         import gzip
-        gzipper = gzip.GzipFile(fileobj = StringIO.StringIO(body))
-        body = gzipper.read()
+        try:
+            gzipper = gzip.GzipFile(fileobj = StringIO.StringIO(body))
+            body = gzipper.read()
+        except Exception, e:
+            ansi.echo("red ERROR: Could not uncompress gzip (%s)" % e)
+            ansi.echo()
+            print "Raw body length was:", len(body)
+            return False
 
     if 'json' in response.headers.get('content-type', '').lower():
         try:
@@ -117,15 +125,14 @@ def print_response(request, response):
             #pprint(decoded)
             pretty = json.dumps(decoded, sort_keys=True, indent=4)
             #pretty = json.dumps(decoded, sort_keys=False)
-            ansi.echo("underline JSON - raw:")
+            ansi.echo("underline JSON (pretty):")
             ansi.echo()
             print pretty
             #ansi.echo("@50;40")
             #print pretty
-            print
 
         except Exception, e:
-            ansi.echo("red ERROR: Could not decode json (%s)" % e)
+            ansi.echo("red ERROR: Could not parse json (%s)" % e)
             ansi.echo()
             print "Raw body was:"
             print body
