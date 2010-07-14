@@ -1,71 +1,53 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# basic blueprint from pynids Example [$Id: Example,v 1.3 2005/01/27 04:53:45 mjp Exp $]
 
 import os, sys
 import time
 import types
 import dpkt
-from threading import Thread
+import shlex, subprocess
+import atexit
+from multiprocessing import Process, Pipe
 
-from sanchez.sniffer import Sniffer, queue
+from sanchez.sniffer import Sniffer
 from sanchez.utils import ansi
 
+class Receiver():
 
-def decode_ip(ip_bytes):
-    octet_parts = []
-    for byte in ip_bytes:
-        octet_parts.append(str(ord(byte)))
-    octet = '.'.join(octet_parts)
-    return octet
+    def __init__(self, pipe):
+        self.pipe = pipe
 
-
-class Receiver(Thread):
-
-    def __init__ (self):
-        Thread.__init__(self)
+    def start(self):
+        #print "starting data collector process"
+        self.run()
 
     def run(self):
 
-        #print "more:", more
-
-        print "show_stream - init"
+        print "data collector started"
 
         while True:
 
-            print "show_stream - run:", queue.qsize()
-
-            #time.sleep(1)
-            #if len(queue) == 0:
-            #    continue
-
-            #(addr, request_raw, response_raw) = queue.pop()
-            (addr, request_raw, response_raw) = queue.get(True)
-            print "got entry"
-            print "addr:", addr
-            print "request:", request_raw
-            print "response:", response_raw
-            continue
-
-            #print dir(tcp.server)
+            (addr, request_raw, response_raw) = self.pipe.recv()
             request_http = response_http = None
             try:
                 request_http  = dpkt.http.Request(request_raw)
                 response_http = dpkt.http.Response(response_raw)
             except dpkt.UnpackError, e:
                 print "dpkt.UnpackError (problem decoding http):", e
+                continue
 
             if not filter_accept(addr, request_http, response_http):
-                return
+                continue
 
             print_header(addr, request = True)
-            #return
+            print_request(request_http, response_http)
 
-            print request_http
             print_header(addr, response = True)
-            print_response(response_http)
+            print_response(request_http, response_http)
             print
+
+            #queue.task_done()
 
 
 def filter_accept(addr, request, response):
@@ -91,8 +73,26 @@ def print_header(addr, request = False, response = False):
     print conversation_header
     ansi.echo()
 
+def print_request(request, response):
+    print '%s %s %s/%s' % (request.method, request.uri, 'HTTP', request.version), "\t",
+    if int(response.status) < 400:
+        ansi.echo("green [%s %s]" % (response.status, response.reason))
+    else:
+        ansi.echo("red   [%s %s]" % (response.status, response.reason))
+    ansi.echo()
+    print request.pack_hdr()
 
-def print_response(response):
+    # pretty print post data
+    if request.method == 'POST':
+        ansi.echo("green POST data:")
+        body = request.body
+        post_parts = body.split('&')
+        for part in post_parts:
+            key, value = part.split('=', 1)
+            print "%s: %s" % (key, value)
+
+
+def print_response(request, response):
 
     if int(response.status) < 400:
         ansi.echo("green")
@@ -115,18 +115,14 @@ def print_response(response):
             decoded = json.loads(body)
             #from pprint import pprint
             #pprint(decoded)
-            #pretty = json.dumps(decoded, sort_keys=True, indent=4)
-            pretty = json.dumps(decoded, sort_keys=False, indent=4)
-            ansi.echo("green Pretty:")
+            pretty = json.dumps(decoded, sort_keys=True, indent=4)
+            #pretty = json.dumps(decoded, sort_keys=False)
+            ansi.echo("underline JSON - raw:")
             ansi.echo()
             print pretty
             #ansi.echo("@50;40")
             #print pretty
             print
-
-            ansi.echo("green Decoded:")
-            ansi.echo()
-            print "hello world!"
 
         except Exception, e:
             ansi.echo("red ERROR: Could not decode json (%s)" % e)
@@ -135,30 +131,44 @@ def print_response(response):
             print body
 
 
-
 def main():
 
     if len(sys.argv) == 1:
         print "ERROR: Please specify network interface to listen on (e.g. lo0, en0, en1, ...)"
         sys.exit(1)
 
-    sniffer = Sniffer(sys.argv[1], 'tcp and (port 8181 or port 8080)')
+    # set interface name (e.g. en0, en1, lo0, eth0, ...)
+    interface_name = sys.argv[1]
+
+    # set BPF filter
+    # see http://biot.com/capstats/bpf.html
+    bpf_filter = 'tcp and (port 8181 or port 8080)'
+
+    # start sniffer process (uses pynids for tcp stream reassembly)
+    # connect it by Pipe
+    parent_conn, child_conn = Pipe()
+    sniffer = Sniffer(pipe=child_conn, interface_name=interface_name, bpf_filter=bpf_filter)
 
     ansi.echo("@@ bold")
     ansi.echo("red")
-    print "sanchez v0.01 - standing on the shoulders of giants"
+    print "sanchez v0.02 - standing on the shoulders of giants"
+    ansi.echo("none")
+    ansi.echo("green")
+    ansi.echo("none interface: ", end = '')
+    ansi.echo("green %s" % interface_name, end = '')
+    ansi.echo("none , bpf filter: ", end = '')
+    ansi.echo("green %s" % bpf_filter)
     ansi.echo()
     print
 
+    atexit.register(sniffer.terminate)
+
     sniffer.start()
-    #show_stream()
-    r = Receiver()
+
+    r = Receiver(pipe=parent_conn)
     r.start()
 
-    #sniffer.start()
-
-
-    print "finished!"
+    sniffer.join()
 
 if __name__ == '__main__':
     main()

@@ -1,26 +1,24 @@
 # -*- coding: utf-8 -*-
 
-from threading import Thread
-#from collections import deque
-from Queue import Queue
+# basic blueprint from pynids Example [$Id: Example,v 1.3 2005/01/27 04:53:45 mjp Exp $]
+# http://jon.oberheide.org/pynids/
+
 import nids
-
-
-#queue = deque()
-queue = Queue()
-
+from multiprocessing import Process
 
 TCP_END_STATES = (nids.NIDS_CLOSE, nids.NIDS_TIMEOUT, nids.NIDS_RESET)
 
-class Sniffer(Thread):
+class Sniffer(Process):
 
-    def __init__ (self, interface_name, bpf_filter):
-        Thread.__init__(self)
+    def __init__ (self, pipe, interface_name, bpf_filter):
+        self.pipe = pipe
         self.interface_name = interface_name
         self.bpf_filter = bpf_filter
+        Process.__init__(self)
 
     def run(self):
 
+        print "network sniffer process started"
         #nids.param("pcap_filter", "tcp and port 8181")      # bpf restrict to TCP only, note
                                                             # libnids caution about fragments
         nids.chksum_ctl([('0.0.0.0/0', False)])             # disable checksumming
@@ -32,16 +30,7 @@ class Sniffer(Thread):
 
 
         # apply BPF filter
-        # captures all IPv4 HTTP packets to and from port 80, i.e. only packets that
-        # contain data, not, for example, SYN and FIN packets and ACK-only packets
         # see http://biot.com/capstats/bpf.html
-        #pc.setfilter('tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
-        #pc.setfilter('host netfrag.org and tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
-        #pc.setfilter('host 178.63.253.130 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
-        #pc.setfilter('(port 8181 or port 8080) and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)')
-
-        #nids.param('pcap_filter', 'tcp and (port 8181 or port 8080)')
-        #nids.param('pcap_filter', 'tcp and (port 18181)')
         nids.param('pcap_filter', self.bpf_filter)
 
         nids.init()
@@ -53,11 +42,14 @@ class Sniffer(Thread):
         # Loop forever (network device), or until EOF (pcap file)
         # Note that an exception in the callback will break the loop!
         try:
+            #print "nids.run"
             nids.run()
         except nids.error, e:
             print "nids/pcap error:", e
         except Exception, e:
             print "misc. exception (runtime error in user callback?):", e
+
+        print "nids.stop"
 
     def drop_root_privileges(self):
         # TODO: frop root privileges
@@ -77,6 +69,12 @@ class Sniffer(Thread):
             print "error - drop root, please!"
             sys.exit(1)
         """
+
+    def tcp_stream_handler_1(self, tcp):
+        try:
+            self.tcp_stream_handler_impl(tcp)
+        except Exception, e:
+            print "Exception in sanchez.sniffer.tcp_stream_handler:", e
 
     def tcp_stream_handler(self, tcp):
 
@@ -104,12 +102,9 @@ class Sniffer(Thread):
             #print dir(tcp.client)
             request_raw   = tcp.server.data[:tcp.server.count]
             response_raw  = tcp.client.data[:tcp.client.count]
-            print "queue.append"
-            entry = (tcp.addr, request_raw, response_raw)
-            #queue.appendleft()
-            queue.put(entry)
-
-            #tcp.client.collect = 0
-            #tcp.server.collect = 0
-
-            #print entry
+            #print "queue.append"
+            #print tcp.addr
+            #print dir(tcp.addr)
+            #entry = (((None, None), (None, None)), str(request_raw), str(response_raw))
+            entry = (list(tcp.addr), str(request_raw), str(response_raw))
+            self.pipe.send(entry)
