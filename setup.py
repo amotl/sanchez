@@ -18,7 +18,7 @@ setup (
             'zope.testing',
             ]),
     install_requires = ['setuptools',
-                        #'pcap',
+                        #'pynids',
                         #'dpkt',
                         ],
     zip_safe = False,
