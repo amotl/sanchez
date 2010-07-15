@@ -11,15 +11,16 @@ import atexit
 from multiprocessing import Process, Pipe
 
 from sanchez.sniffer import Sniffer
+from sanchez.http import HttpConversation, HttpFilter, HttpDumper, HttpResponseDecoder,\
+    HttpRequestDecoder
 from sanchez.utils import ansi
 
-class Receiver():
+class Collector():
 
     def __init__(self, pipe):
         self.pipe = pipe
 
     def start(self):
-        #print "starting data collector process"
         self.run()
 
     def run(self):
@@ -37,105 +38,32 @@ class Receiver():
                 print "dpkt.UnpackError (problem decoding http):", e
                 continue
 
-            if not filter_accept(addr, request_http, response_http):
+            # container object
+            conversation = HttpConversation(addr, request_http, response_http)
+
+            # apply e.g. http header filter
+            filter = HttpFilter(conversation)
+            if not filter.accept():
                 continue
 
-            print_header(addr, request = True)
-            print_request(request_http, response_http)
-            print
+            # request: decode post data, etc.
+            decoder = HttpRequestDecoder(conversation)
+            decoder.decode()
 
-            print_header(addr, response = True)
-            print_response(request_http, response_http)
-            print
-
-            #queue.task_done()
+            # response: decode gzip, json, etc.
+            decoder = HttpResponseDecoder(conversation)
+            decoder.decode()
 
 
-def filter_accept(addr, request, response):
-    return \
-        'json' in request.headers.get('accept', '').lower() \
-        or \
-        'json' in response.headers.get('content-type', '').lower()
+            # dump request- and response messages to stdout,
+            # possibly enriched from intermediary decoder steps
+            dumper = HttpDumper(conversation)
 
+            dumper.print_header(request = True)
+            dumper.print_request()
 
-def print_header(addr, request = False, response = False):
-    label = "UNKNOWN"
-    direction = '-'
-    ((source_ip, source_port), (target_ip, target_port)) = addr
-    if request:
-        label = "REQUEST: "
-        direction = '->'
-    elif response:
-        label = "RESPONSE:"
-        direction = '<-'
-    conversation_header = '%s %s:%s %s %s:%s' % (label, source_ip, source_port, direction, target_ip, target_port)
-
-    ansi.echo("blue bold underline")
-    print conversation_header
-    ansi.echo()
-
-def print_request(request, response):
-    print '%s %s %s/%s' % (request.method, request.uri, 'HTTP', request.version), "\t",
-    if int(response.status) < 400:
-        ansi.echo("green [%s %s]" % (response.status, response.reason))
-    else:
-        ansi.echo("red   [%s %s]" % (response.status, response.reason))
-    ansi.echo()
-    print request.pack_hdr()
-
-    # pretty print post data
-    if request.method == 'POST':
-        ansi.echo("underline POST payload (pretty):")
-        ansi.echo()
-        body = request.body
-        post_parts = body.split('&')
-        for part in post_parts:
-            key, value = part.split('=', 1)
-            print "%s: %s" % (key, value)
-
-
-def print_response(request, response):
-
-    if int(response.status) < 400:
-        ansi.echo("green")
-    else:
-        ansi.echo("red")
-    print '%s/%s %s %s' % ('HTTP', response.version, response.status, response.reason)
-    ansi.echo()
-    print response.pack_hdr()
-
-    body = response.body
-    if 'gzip' in response.headers.get('content-encoding', ''):
-        import StringIO
-        import gzip
-        try:
-            gzipper = gzip.GzipFile(fileobj = StringIO.StringIO(body))
-            body = gzipper.read()
-        except Exception, e:
-            ansi.echo("red ERROR: Could not uncompress gzip (%s)" % e)
-            ansi.echo()
-            print "Raw body length was:", len(body)
-            return False
-
-    if 'json' in response.headers.get('content-type', '').lower():
-        try:
-            import json
-            decoded = json.loads(body)
-            #from pprint import pprint
-            #pprint(decoded)
-            pretty = json.dumps(decoded, sort_keys=True, indent=4)
-            #pretty = json.dumps(decoded, sort_keys=False)
-            ansi.echo("underline JSON (pretty):")
-            ansi.echo()
-            print pretty
-            #ansi.echo("@50;40")
-            #print pretty
-
-        except Exception, e:
-            ansi.echo("red ERROR: Could not parse json (%s)" % e)
-            ansi.echo()
-            print "Raw body was:"
-            print body
+            dumper.print_header(response = True)
+            dumper.print_response()
 
 
 def main():
@@ -151,10 +79,6 @@ def main():
     # see http://biot.com/capstats/bpf.html
     bpf_filter = 'tcp and (port 8181 or port 8080)'
 
-    # start sniffer process (uses pynids for tcp stream reassembly)
-    # connect it by Pipe
-    parent_conn, child_conn = Pipe()
-    sniffer = Sniffer(pipe=child_conn, interface_name=interface_name, bpf_filter=bpf_filter)
 
     ansi.echo("@@ bold")
     ansi.echo("red")
@@ -168,13 +92,18 @@ def main():
     ansi.echo()
     print
 
+    # start sniffer process (uses pynids for tcp stream reassembly)
+    # connect it by Pipe
+    parent_conn, child_conn = Pipe()
+    sniffer = Sniffer(pipe=child_conn, interface_name=interface_name, bpf_filter=bpf_filter)
     atexit.register(sniffer.terminate)
-
     sniffer.start()
 
-    r = Receiver(pipe=parent_conn)
-    r.start()
+    # start collector
+    collector = Collector(pipe=parent_conn)
+    collector.start()
 
+    # wait for sniffer to terminate
     sniffer.join()
 
 if __name__ == '__main__':
