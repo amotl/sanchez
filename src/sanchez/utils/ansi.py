@@ -23,7 +23,7 @@ for k, v in dict(
     colors = 'grey red green yellow blue magenta cyan white'
 ).items(): globals()[k]=dict((s,i) for i,s in enumerate(v.split()))
 
-def echo(arg=None, sep=' ', end='\n'):
+def get(arg=None, sep=' ', end='\n'):
     '''
         "arg" is a string or None
         if "arg" is None : the terminal is reset to his default values.
@@ -73,7 +73,12 @@ def echo(arg=None, sep=' ', end='\n'):
                 else:
                     txt.append(a)
     if txt and end: txt[-1]+=end
-    stdout.write(esc.join(cmd)+sep.join(txt))
+
+    final = esc.join(cmd) + sep.join(txt)
+    return final
+
+def echo(arg=None, sep=' ', end='\n'):
+    stdout.write(get(arg, sep, end))
 
 if __name__ == '__main__':
 

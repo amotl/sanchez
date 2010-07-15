@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 
+import sys
+from sanchez import config
 from sanchez.utils import ansi
 
 
 class HttpConversation(object):
+    """
+    just a container object for bundling the
+    magic triple as of (addr, request, response)
+    """
 
     def __init__(self, addr, request, response):
         self.addr = addr
@@ -19,29 +25,96 @@ class HttpConversation(object):
             self.response.json_decoded = None
 
 
-class HttpFilter(object):
-    '''
-    filters http messages
-    '''
+
+class HttpDecoderChain(object):
+    """
+    main sequence to run through all filtering and decoding steps
+    """
+
+    def __init__(self, conversation):
+        self.conversation = conversation
+
+    def process(self):
+
+        # apply e.g. http header filter
+        filter = HttpHeaderFilter(self.conversation)
+        if not filter.accept():
+            return False
+
+        # request: decode post data, etc.
+        decoder_reqest = HttpRequestDecoder(self.conversation)
+        decoder_reqest.decode()
+
+        # response: decode gzip, json, etc.
+        decoder_response = HttpResponseDecoder(self.conversation)
+        decoder_response.decode()
+
+        return True
+
+
+class HttpHeaderFilter(object):
+    """
+    filters http messages by conditions applied to http headers
+    """
 
     def __init__(self, conversation):
         self.c = conversation
 
     def accept(self):
+
+        # v1 - to shed more light onto this
+        """
         return \
             'json' in self.c.request.headers.get('accept', '').lower() \
             or \
             'json' in self.c.response.headers.get('content-type', '').lower()
+        """
+
+        # v2 - generic logic controlled by sanchez.config (~/.sanchez/config.py)
+        if not config.http.filter.accept.header:
+            return True
+
+        for msg in self.c.request, self.c.response:
+            for header, value in config.http.filter.accept.header.iteritems():
+                if value in msg.headers.get(header, '').lower():
+                    return True
 
 
 class HttpResponseDecoder(object):
+    """
+    decodes body of http response
+    order: gzip, json, custom plugin decoders
+    """
+
+    plugins = []
+
 
     def __init__(self, conversation):
         self.c = conversation
 
+
+    @classmethod
+    def plugin_register(cls, plugin):
+        """
+        very simple plugin mechanism
+        """
+        HttpResponseDecoder.plugins.append(plugin)
+
+
     def decode(self):
+        """
+        main sequence to run through all response.body decoding steps
+        """
+
+        # builtin steps
         self.decode_gzip()
         self.decode_json()
+
+        # plugin steps
+        for plugin in self.plugins:
+            p = plugin(self.c)
+            p.decode()
+
 
     def decode_gzip(self):
         request = self.c.request
@@ -79,21 +152,24 @@ class HttpResponseDecoder(object):
 
 
 class HttpRequestDecoder(object):
+    """
+    decodes body of http request
+    order: postdata, custom plugin decoders
+    """
 
     def __init__(self, conversation):
         self.c = conversation
 
     def decode(self):
-        self.decode_post()
+        self.decode_postdata()
 
-    def decode_post(self):
+    def decode_postdata(self):
 
         request = self.c.request
 
         # pretty print post data
         if request.method == 'POST':
-            body = request.body
-            post_parts = body.split('&')
+            post_parts = request.body.split('&')
             postdata = []
             for part in post_parts:
                 key, value = part.split('=', 1)
@@ -104,9 +180,11 @@ class HttpRequestDecoder(object):
 
 
 class HttpDumper(object):
-    '''
-    dumps http messages to console
-    '''
+    """
+    dumps details of http messages to console
+    uses ansi control codes for shiny colors ;]
+    as with almost all ui stuff, this is a mess
+    """
 
     def __init__(self, conversation):
         self.c = conversation
