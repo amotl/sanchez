@@ -2,7 +2,7 @@ Sanchez - the packet sniffer you have been looking for
 ======================================================
 
 
-SYNOPSIS.rst
+doc/SYNOPSIS.rst
 
 
 WARNING
@@ -21,8 +21,8 @@ report such condition via its D-component interface.
 
 
 
-FEATURES.rst
+doc/FEATURES.rst
 
-INSTALL.rst
+doc/INSTALL.rst
 
-LINKS.rst
+doc/LINKS.rst
