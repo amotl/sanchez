@@ -17,3 +17,6 @@ class ConfigurationObject(object):
     def __str__(self):
         # TODO: serialize recursively for nice output
         return str(self.__dict__)
+
+    def __nonzero__(self):
+        return bool(self.__dict__)
