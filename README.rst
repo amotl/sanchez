@@ -2,7 +2,7 @@ Sanchez - the packet sniffer you have been looking for
 ======================================================
 
 
-.. include:: doc/SYNOPSIS.rst
+`doc/SYNOPSIS.rst`_
 
 
 WARNING
