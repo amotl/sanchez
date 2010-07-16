@@ -37,8 +37,12 @@ class HttpDecoderChain(object):
     def process(self):
 
         # apply e.g. http header filter
-        filter = HttpHeaderFilter(self.conversation)
-        if not filter.accept():
+        filter_header = HttpHeaderFilter(self.conversation)
+        if not filter_header.accept():
+            return False
+
+        filter_method = HttpMethodFilter(self.conversation)
+        if not filter_method.accept():
             return False
 
         # request: decode post data, etc.
@@ -79,6 +83,28 @@ class HttpHeaderFilter(object):
                 if value in msg.headers.get(header, '').lower():
                     return True
 
+        return False
+
+
+class HttpMethodFilter(object):
+    """
+    filters http messages by conditions applied to the http request method
+    """
+
+    def __init__(self, conversation):
+        self.c = conversation
+
+    def accept(self):
+
+        # generic logic controlled by sanchez.config (~/.sanchez/config.py)
+        if not config.http.filter.accept.method:
+            return True
+
+        for method in config.http.filter.accept.method:
+            if method == self.c.request.method.upper():
+                return True
+
+        return False
 
 class HttpResponseDecoder(object):
     """
