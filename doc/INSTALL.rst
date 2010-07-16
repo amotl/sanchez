@@ -1,6 +1,7 @@
 Installation guidelines for Mac OS X
-Please complement for other os types
 ====================================
+
+Please complement for other os types....
 
 
 Prerequisites
@@ -26,7 +27,7 @@ pynids
 dpkt
 ----
 
-1. install to base python::
+- install to base python::
 
    wget http://dpkt.googlecode.com/files/dpkt-1.7-py2.6-macosx10.6.dmg
    hdiutil attach dpkt-1.7-py2.6-macosx10.6.dmg
@@ -38,7 +39,7 @@ could work as well::
    sudo port install py26-dpkt
 
 
-1. link to custom (buildout) python installation::
+- link to custom (buildout) python installation::
 
    sudo ln -s /Library/Python/2.6/site-packages/dpkt /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/dpkt
 
@@ -58,19 +59,18 @@ a) install "sanchez" to buildout (./bin/sanchez)::
 
    ./bin/buildout -vvvvN
 
-a) install "sanchez" entrypoint system-wide
-   will copy eggs to the system::
+a) install "sanchez" entrypoint system-wide; will copy eggs to the system::
 
    sudo ./bin/buildout setup . install --script-dir=/usr/local/bin
 
-a) development mode: install "sanchez" entrypoint system-wide
-   while leaving sources in this tree::
+a) development mode: install "sanchez" entrypoint system-wide, while leaving sources in this tree::
+
    sudo ./bin/buildout setup . develop --script-dir=/usr/local/bin
 
 variant c) is recommended for easy hacking
 
 
-configuration
+Configuration
 -------------
 
 Please deploy to `~/.sanchez/config.py`:
