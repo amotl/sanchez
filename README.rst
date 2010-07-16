@@ -1,6 +1,8 @@
 Sanchez - the packet sniffer you have been looking for
 ======================================================
 
+Note: Please click directly on `README.rst` to be able to follow the links.
+
 
 `SYNOPSIS <doc/SYNOPSIS.rst>`_
 
@@ -21,8 +23,8 @@ report such condition via its D-component interface.
 
 
 
-doc/FEATURES.rst
+`FEATURES <doc/FEATURES.rst>`_
 
-doc/INSTALL.rst
+`INSTALL <doc/INSTALL.rst>`_
 
-doc/LINKS.rst
+`LINKS <doc/LINKS.rst>`_
