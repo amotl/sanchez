@@ -34,7 +34,8 @@ dpkt
    sudo installer -pkg /Volumes/dpkt-1.7-py2.6-macosx10.6/dpkt-1.7-py2.6-macosx10.6.mpkg -target /
    hdiutil detach /Volumes/dpkt-1.7-py2.6-macosx10.6/
 
-could work as well::
+
+- could work as well::
 
    sudo port install py26-dpkt
 
@@ -55,17 +56,20 @@ sanchez
 variants
 --------
 
-a) install "sanchez" to buildout (./bin/sanchez)::
+- install "sanchez" to buildout (./bin/sanchez)::
 
-   ./bin/buildout -vvvvN
+  ./bin/buildout -vvvvN
 
-a) install "sanchez" entrypoint system-wide; will copy eggs to the system::
 
-   sudo ./bin/buildout setup . install --script-dir=/usr/local/bin
+- install "sanchez" entrypoint system-wide; will copy eggs to the system::
 
-a) development mode: install "sanchez" entrypoint system-wide, while leaving sources in this tree::
+  sudo ./bin/buildout setup . install --script-dir=/usr/local/bin
 
-   sudo ./bin/buildout setup . develop --script-dir=/usr/local/bin
+
+- development mode: install "sanchez" entrypoint system-wide, while leaving sources in this tree::
+
+  sudo ./bin/buildout setup . develop --script-dir=/usr/local/bin
+
 
 variant c) is recommended for easy hacking
 
