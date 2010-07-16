@@ -10,6 +10,7 @@ pynids
 ------
 
 ::
+
   wget http://jon.oberheide.org/pynids/downloads/pynids-0.6.1.tar.gz
   tar -xzf pynids-0.6.1.tar.gz
   cd pynids-0.6.1
@@ -26,22 +27,25 @@ dpkt
 ----
 
 1. install to base python::
-  wget http://dpkt.googlecode.com/files/dpkt-1.7-py2.6-macosx10.6.dmg
-  hdiutil attach dpkt-1.7-py2.6-macosx10.6.dmg
-  sudo installer -pkg /Volumes/dpkt-1.7-py2.6-macosx10.6/dpkt-1.7-py2.6-macosx10.6.mpkg -target /
-  hdiutil detach /Volumes/dpkt-1.7-py2.6-macosx10.6/
+
+   wget http://dpkt.googlecode.com/files/dpkt-1.7-py2.6-macosx10.6.dmg
+   hdiutil attach dpkt-1.7-py2.6-macosx10.6.dmg
+   sudo installer -pkg /Volumes/dpkt-1.7-py2.6-macosx10.6/dpkt-1.7-py2.6-macosx10.6.mpkg -target /
+   hdiutil detach /Volumes/dpkt-1.7-py2.6-macosx10.6/
 
 could work as well::
-  sudo port install py26-dpkt
+
+   sudo port install py26-dpkt
 
 
-2. link to custom (buildout) python installation::
-  sudo ln -s /Library/Python/2.6/site-packages/dpkt /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/dpkt
+1. link to custom (buildout) python installation::
 
-  $ python
-  >>> import dpkt
-  >>> dpkt.__file__
-  '/opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/dpkt/__init__.pyc'
+   sudo ln -s /Library/Python/2.6/site-packages/dpkt /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/dpkt
+
+   $ python
+   >>> import dpkt
+   >>> dpkt.__file__
+   '/opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/dpkt/__init__.pyc'
 
 
 sanchez
@@ -51,15 +55,17 @@ variants
 --------
 
 a) install "sanchez" to buildout (./bin/sanchez)::
-  ./bin/buildout -vvvvN
 
-b) install "sanchez" entrypoint system-wide
+   ./bin/buildout -vvvvN
+
+a) install "sanchez" entrypoint system-wide
    will copy eggs to the system::
-  sudo ./bin/buildout setup . install --script-dir=/usr/local/bin
 
-c) development mode: install "sanchez" entrypoint system-wide
+   sudo ./bin/buildout setup . install --script-dir=/usr/local/bin
+
+a) development mode: install "sanchez" entrypoint system-wide
    while leaving sources in this tree::
-  sudo ./bin/buildout setup . develop --script-dir=/usr/local/bin
+   sudo ./bin/buildout setup . develop --script-dir=/usr/local/bin
 
 variant c) is recommended for easy hacking
 
@@ -67,7 +73,7 @@ variant c) is recommended for easy hacking
 configuration
 -------------
 
-Please deploy to ~/.sanchez/config.py
+Please deploy to `~/.sanchez/config.py`:
 
 `config.py <config.py>`_
 

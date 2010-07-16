@@ -29,10 +29,10 @@ HTTP message decoding / display
 
 
 
-[1] http://libnids.sourceforge.net/
+Links
+-----
 
-[2] http://www.tcpdump.org/release/
-
-[3] http://www.packetfactory.net/libnet
-
-[4] http://code.google.com/p/dpkt/
+| [1] http://libnids.sourceforge.net/
+| [2] http://www.tcpdump.org/release/
+| [3] http://www.packetfactory.net/libnet
+| [4] http://code.google.com/p/dpkt/
