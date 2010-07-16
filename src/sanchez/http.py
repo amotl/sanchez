@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import urllib
+import urlparse
+import pprint
+
 from sanchez import config
 from sanchez.utils import ansi
-
 
 class HttpConversation(object):
     """
@@ -15,8 +18,12 @@ class HttpConversation(object):
         self.addr = addr
 
         self.request = request
-        if not hasattr(self.request, 'postdata'):
-            self.request.postdata = []
+        if not hasattr(self.request, 'postdata_dict'):
+            self.request.postdata_dict = {}
+        if not hasattr(self.request, 'postdata_list'):
+            self.request.postdata_list = []
+        if not hasattr(self.request, 'postdata_decoded'):
+            self.request.postdata_decoded = {}
 
         self.response = response
         if not hasattr(self.response, 'errors'):
@@ -196,12 +203,15 @@ class HttpRequestDecoder(object):
         # pretty print post data
         if request.method == 'POST':
             post_parts = request.body.split('&')
-            postdata = []
+            postdata_list = []
             for part in post_parts:
                 key, value = part.split('=', 1)
-                entry = "%s: %s" % (key, value)
-                postdata.append(entry)
-            request.postdata = postdata
+                entry = "%s: %s" % (key, urllib.unquote_plus(value))
+                postdata_list.append(entry)
+
+            request.postdata_dict = urlparse.parse_qs(request.body)
+            request.postdata_list = postdata_list
+
             return True
 
 
@@ -246,11 +256,17 @@ class HttpDumper(object):
         ansi.echo()
         print request.pack_hdr()
 
-        # pretty print post data
-        if request.postdata:
+        # pretty print raw post data
+        if request.postdata_list:
             ansi.echo("underline POST payload (pretty):")
             ansi.echo()
-            print '\n'.join(request.postdata)
+            print '\n'.join(request.postdata_list)
+
+        # pretty print decoded post data
+        if request.postdata_decoded:
+            ansi.echo("underline POST payload (decoded):")
+            ansi.echo()
+            pprint.pprint(request.postdata_decoded)
 
 
     def print_response(self):
