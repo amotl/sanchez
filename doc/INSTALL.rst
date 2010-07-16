@@ -56,17 +56,20 @@ sanchez
 variants
 --------
 
-- install "sanchez" to buildout (./bin/sanchez)::
+- install "sanchez" to buildout (./bin/sanchez)
+::
 
   ./bin/buildout -vvvvN
 
 
-- install "sanchez" entrypoint system-wide; will copy eggs to the system::
+- install "sanchez" entrypoint system-wide; will copy eggs to the system
+::
 
   sudo ./bin/buildout setup . install --script-dir=/usr/local/bin
 
 
-- development mode: install "sanchez" entrypoint system-wide, while leaving sources in this tree::
+- development mode: install "sanchez" entrypoint system-wide, while leaving sources in this tree
+::
 
   sudo ./bin/buildout setup . develop --script-dir=/usr/local/bin
 
