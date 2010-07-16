@@ -29,6 +29,15 @@ def load_config():
 
 
 def read_commandline_arguments():
+
+    if '--help' in sys.argv:
+        print """Synopsis:
+    $ sudo nice -n -20 sanchez
+    $ sudo nice -n -20 sanchez lo0
+    See also configuration file ~/.sanchez/config.py
+        """
+        sys.exit()
+
     if len(sys.argv) == 2:
         config.interface_name = sys.argv[1]
 
