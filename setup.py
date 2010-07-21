@@ -19,7 +19,7 @@ setup (
             ]),
     install_requires = ['setuptools',
                         #'pynids',
-                        #'dpkt',
+                        'dpkt',
                         ],
     zip_safe = False,
     entry_points = {
