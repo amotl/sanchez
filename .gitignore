@@ -7,3 +7,4 @@ develop-eggs/
 .settings/
 .project
 .pydevproject*
+dist/
