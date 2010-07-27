@@ -24,10 +24,11 @@ setup (
         test = [
             'zope.testing',
             ]),
-    install_requires = ['setuptools',
-                        'pynids',
-                        'dpkt',
-                        ],
+    install_requires = [
+        'setuptools',
+        'pynids==0.6.1',
+        'dpkt==1.7',
+    ],
     zip_safe = False,
     entry_points = {
         'console_scripts': [
