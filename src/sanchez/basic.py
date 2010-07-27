@@ -2,18 +2,19 @@
 # -*- coding: utf-8 -*-
 
 
-import os, sys
+import os
+import sys
 import time
 import types
 import atexit
+import pkg_resources
 from multiprocessing import Pipe
 
 from sanchez import config, __VERSION__
 from sanchez.sniffer import Sniffer
 from sanchez.tcp import HttpCollector
-from sanchez.http import HttpDecoderChain, HttpDumper
+from sanchez.http import HttpDecoderChain, HttpDumper, HttpResponseDecoder
 from sanchez.utils import ansi
-from sanchez.plugin import plugin_registry
 
 
 CONFIG_PATH = os.path.join(os.environ['HOME'], '.sanchez')
@@ -54,7 +55,7 @@ def print_startup_header():
     ansi.echo("green %s" % config.bpf_filter)
     ansi.echo("none plugins:    ", end = '')
     ansi.echo("green", end = '')
-    print ", ".join(plugin_registry)
+    print ", ".join([plugin.__name__ for plugin in HttpResponseDecoder.plugins])
     ansi.echo()
     print
 
@@ -89,14 +90,18 @@ def http_dump_callback(conversation):
     dumper.print_response()
 
 
+def register_plugins():
+    ENTRYPOINT = 'sanchez.plugins.HttpResponseDecoder'
+
+    for entry_point in pkg_resources.iter_entry_points(ENTRYPOINT):
+        HttpResponseDecoder.plugin_register(entry_point.load())
 
 def main():
-
+    register_plugins()
     load_config()
     read_commandline_arguments()
     print_startup_header()
     boot()
-
 
 if __name__ == '__main__':
     main()
