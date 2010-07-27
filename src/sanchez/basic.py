@@ -8,7 +8,7 @@ import types
 import atexit
 from multiprocessing import Pipe
 
-from sanchez import config
+from sanchez import config, __VERSION__
 from sanchez.sniffer import Sniffer
 from sanchez.tcp import HttpCollector
 from sanchez.http import HttpDecoderChain, HttpDumper
@@ -45,7 +45,7 @@ def read_commandline_arguments():
 def print_startup_header():
     ansi.echo("@@ bold")
     ansi.echo("red")
-    print "sanchez v0.02 - standing on the shoulders of giants"
+    print "sanchez v%s" % ".".join(str(n) for n in __VERSION__)
     ansi.echo("none config:     ", end = '')
     ansi.echo("green %s" % CONFIG_FILE)
     ansi.echo("none interface:  ", end = '')

@@ -3,10 +3,17 @@
 # http://peak.telecommunity.com/DevCenter/setuptools
 # http://peak.telecommunity.com/DevCenter/PythonEggs
 
+import sys
+sys.path.insert(0, 'src/')
+
+from sanchez import __VERSION__
+version = ".".join(str(n) for n in __VERSION__)
+
 from setuptools import setup, find_packages
+
 setup (
     name='sanchez',
-    version='0.0.1',
+    version=version,
     author = "Andreas Motl",
     author_email = "amotl@vz.net",
     packages = find_packages('src'),
