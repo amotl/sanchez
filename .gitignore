@@ -8,3 +8,5 @@ develop-eggs/
 .project
 .pydevproject*
 dist/
+parts/
+tmp/
