@@ -2,13 +2,59 @@ Features
 ========
 
 
+HTTP message decoding / display
+-------------------------------
+
+- Parsing modes
+    - [x] simple: just dump the stream/flow
+    - [o] conversational: with correlation of requests with their responses
+
+- Decoding / Formatting
+    - [x] application/x-www-form-urlencoded
+    - [x] application/json (also groks "text/json")
+    - [x] pretty printing of headers and decoded bodies
+
+- Output modes
+    - [x] Plain ASCII
+        - [o] with and without ANSI coloring
+    - [o] HTML
+        - [o] just reformatted from ASCII
+        - [o] with navigable anchors between conversation-index on top and conversation-details at the bottom
+        - [o] by drilling into conversations with DHTML
+    - [o] ncurses-based
+        - [o] display a list of http conversations which you can drill down into
+        - [o] fields of list can be customized (e.g.: address, url, response code)
+    - [o] Rich GUI
+
+- [o] Filtering by various criteria
+    - [x] BPF filters
+    - [o] totally by regex
+    - [o] query by
+        - [o] HTTP method
+        - [o] request or response headers
+        - [o] successful or failed conversations and similar "macros/shortcuts"
+    - [o] RQL (Request Query Language)
+        - URL
+        - Header (e.g. User-Agent); e.g.::
+
+            SELECT * FROM requests WHERE header_name="User-Agent" AND header_value="... MSIE 8.0 ...";
+
+- [o] Analysis
+    - [o] HTTP spec verification: HTTP/1.0, HTTP/1.1
+	- [o] Anomaly detection
+    - [o] Forensics: save and load sessions
+
+- [o] Plugins to add additional custom decoding steps et al.
+
+
+
 Network sniffing and HTTP decoding
 ----------------------------------
 
 For raw packet capturing, sanchez uses libnids [1], which in turn uses libpcap [2] and libnet [3].
-For HTTP message decoding, dpkt [4] - a python packet creation / parsing library, gets used.
+For HTTP message decoding, dpkt [4] (a python packet creation / parsing library) gets used.
 More highlevel decoding support gets lifted by the Python standard library.
-All credits to the authors of these libs, we are standing on the shoulders of giants.
+All credits to the authors of these libs, we are really standing on the shoulders of giants.
 
 - Captures network traffic using the underlying pcap library by applying a BPF filter,
   while this is encapsulated by libnids:
@@ -18,14 +64,6 @@ All credits to the authors of these libs, we are standing on the shoulders of gi
   assembly and TCP port scan detection.
 
 - Decodes HTTP messages using `dpkt.http.Request` and `dpkt.http.Response`
-
-
-HTTP message decoding / display
--------------------------------
-
-- Dumps HTTP header information (optionally formatted and/or filtered)
-- Decodes text/json payloads
-- Plugins to add additional custom decoding steps
 
 
 

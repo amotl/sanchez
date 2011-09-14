@@ -3,25 +3,34 @@ Installation guidelines for Mac OS X
 
 Please complement for other os types....
 
+::
+
+	sudo ln -s ~/dev/tools/sanchez/bin/sanchez /usr/local/bin/sanchez
+
 
 Prerequisites
 =============
 
-pynids
+libnet
 ------
-
 ::
 
-  wget http://jon.oberheide.org/pynids/downloads/pynids-0.6.1.tar.gz
-  tar -xzf pynids-0.6.1.tar.gz
-  cd pynids-0.6.1
-  python setup.py build
-  sudo python setup.py install
+    sudo port install libnet11
 
-  $ python
-  >>> import nids
-  >>> nids.__file__
-  '/opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/nidsmodule.so'
+pynids
+------
+::
+
+    wget http://jon.oberheide.org/pynids/downloads/pynids-0.6.1.tar.gz
+    tar -xzf pynids-0.6.1.tar.gz
+    cd pynids-0.6.1
+    python setup.py build
+    sudo python setup.py install
+
+    $ python
+    >>> import nids
+    >>> nids.__file__
+    '/opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/nidsmodule.so'
 
 
 dpkt

@@ -5,6 +5,7 @@ TODO
 
   (x) raw http pcap sniffer with tcp flow reassembling
   (x) json decoding
+  (o) fine packaging
   (o) basic http filtering
       (o) request by method: GET, POST, DELETE (multiple)
       (o) request by URI (regexp)
