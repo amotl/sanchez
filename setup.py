@@ -26,7 +26,7 @@ setup (
             ]),
     install_requires = [
         'setuptools',
-        #'pynids==0.6.1',   # install manually, see INSTALL.rst
+        'pynids>=0.6.1',
         'dpkt==1.7',
     ],
     zip_safe = False,
