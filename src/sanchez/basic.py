@@ -76,18 +76,14 @@ def boot():
 
     # wait for sniffer to terminate
     sniffer.join()
+    collector.join()
 
 
 def http_dump_callback(conversation):
     # dump request- and response messages to stdout,
     # possibly enriched from intermediary decoder steps
     dumper = HttpDumper(conversation)
-
-    dumper.print_header(request = True)
-    dumper.print_request()
-
-    dumper.print_header(response = True)
-    dumper.print_response()
+    dumper.dump()
 
 
 def register_plugins():

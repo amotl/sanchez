@@ -5,6 +5,7 @@
 
 import nids
 from multiprocessing import Process
+from http import HttpArtifact
 from pprint import pprint
 
 TCP_END_STATES = (nids.NIDS_CLOSE, nids.NIDS_TIMEOUT, nids.NIDS_RESET)
@@ -28,13 +29,14 @@ class Sniffer(Process):
         self.interface_name = interface_name
         self.bpf_filter = bpf_filter
         self.data = {}
+        self.TRACE = False
         Process.__init__(self)
 
     def run(self):
         """
         """
 
-        print "network sniffer process started"
+        print "network sniffer process started, pid=%s" % self.pid
 
         # apply BPF filter
         # see http://biot.com/capstats/bpf.html
@@ -97,22 +99,46 @@ class Sniffer(Process):
 
             #request_raw   = tcp.server.data[tcp.server.offset:tcp.server.offset+tcp.server.count_new]
             #response_raw  = tcp.client.data[tcp.client.offset:tcp.client.offset+tcp.client.count_new]
-            print
-            print "-" * 42
-            print list(tcp.addr), tcp.nids_state
-            print "server: count={0}, count_new={1}, offset={2}".format(tcp.server.count, tcp.server.count_new, tcp.server.offset)
-            print "client: count={0}, count_new={1}, offset={2}".format(tcp.client.count, tcp.client.count_new, tcp.client.offset)
+            if self.TRACE:
+                print
+                print "-" * 42
+                print list(tcp.addr), tcp.nids_state
+                print "server: count={0}, count_new={1}, offset={2}".format(tcp.server.count, tcp.server.count_new, tcp.server.offset)
+                print "client: count={0}, count_new={1}, offset={2}".format(tcp.client.count, tcp.client.count_new, tcp.client.offset)
             #print "request:\n", "'%s'" % request_raw
             #print "response:\n", "'%s'" % response_raw
 
+            """
             def dump(bucket):
                 if bucket.count_new:
                     start = bucket.count - bucket.count_new
                     payload = bucket.data[start:bucket.count]
                     return payload
-
             print "request:\n", "'%s'" % dump(tcp.server)
             print "response:\n", "'%s'" % dump(tcp.client)
+            """
+
+            def capture(kind, bucket):
+                key = tuple([tcp.addr, kind])
+                if bucket.count_new > 0:
+                    start = bucket.count - bucket.count_new
+                    payload = bucket.data[start:bucket.count]
+                    self.data.setdefault(key, '')
+                    self.data[key] += payload
+
+                elif self.data.has_key(key):
+                    if self.TRACE:
+                        print
+                        print "=" * 42
+                        print key, "\n", self.data[key]
+
+                    #artifact = (key, self.data[key])
+                    artifact = HttpArtifact(tcp.addr, kind, self.data[key])
+                    self.pipe.send(artifact)
+                    del self.data[key]
+
+            capture('request', tcp.server)
+            capture('response', tcp.client)
 
             return
             #if request_raw:

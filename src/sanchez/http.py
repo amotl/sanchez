@@ -8,6 +8,27 @@ import pprint
 from sanchez import config
 from sanchez.utils import ansi
 
+
+class HttpArtifact(object):
+    """
+    just a container object for bundling the
+    magic triple as of (addr, kind [request, response], data)
+    """
+
+    def __init__(self, addr, kind, data):
+        self.addr = addr
+        self.kind = kind
+        self.data = data
+
+    def __str__(self):
+        data = [
+            '-' * 42,
+            str(self.addr) + ' ' + self.kind,
+            self.data,
+        ]
+        return '\n'.join(data)
+
+
 class HttpConversation(object):
     """
     just a container object for bundling the
@@ -16,21 +37,27 @@ class HttpConversation(object):
 
     def __init__(self, addr, request, response):
         self.addr = addr
-
         self.request = request
-        if not hasattr(self.request, 'postdata_dict'):
-            self.request.postdata_dict = {}
-        if not hasattr(self.request, 'postdata_list'):
-            self.request.postdata_list = []
-        if not hasattr(self.request, 'postdata_decoded'):
-            self.request.postdata_decoded = {}
-
         self.response = response
-        if not hasattr(self.response, 'errors'):
-            self.response.errors = []
-        if not hasattr(self.response, 'json_decoded'):
-            self.response.json_decoded = None
+        self.initialize()
 
+    def initialize(self):
+
+        # request
+        if self.request:
+            if not hasattr(self.request, 'postdata_dict'):
+                self.request.postdata_dict = {}
+            if not hasattr(self.request, 'postdata_list'):
+                self.request.postdata_list = []
+            if not hasattr(self.request, 'postdata_decoded'):
+                self.request.postdata_decoded = {}
+
+        # response
+        if self.response:
+            if not hasattr(self.response, 'errors'):
+                self.response.errors = []
+            if not hasattr(self.response, 'json_decoded'):
+                self.response.json_decoded = None
 
 
 class HttpDecoderChain(object):
@@ -53,8 +80,8 @@ class HttpDecoderChain(object):
             return False
 
         # request: decode post data, etc.
-        decoder_reqest = HttpRequestDecoder(self.conversation)
-        decoder_reqest.decode()
+        decoder_request = HttpRequestDecoder(self.conversation)
+        decoder_request.decode()
 
         # response: decode gzip, json, etc.
         decoder_response = HttpResponseDecoder(self.conversation)
@@ -139,6 +166,8 @@ class HttpResponseDecoder(object):
         main sequence to run through all response.body decoding steps
         """
 
+        if not self.c.response: return
+
         # builtin steps
         self.decode_gzip()
         self.decode_json()
@@ -194,14 +223,12 @@ class HttpRequestDecoder(object):
         self.c = conversation
 
     def decode(self):
-        self.decode_postdata()
-
-    def decode_postdata(self):
 
         request = self.c.request
+        if not request: return
 
         # pretty print post data
-        if request.method == 'POST':
+        if request.headers.get('content-type', '').lower().startswith('application/x-www-form-urlencoded'):
             post_parts = request.body.split('&')
             postdata_list = []
             for part in post_parts:
@@ -224,6 +251,17 @@ class HttpDumper(object):
 
     def __init__(self, conversation):
         self.c = conversation
+
+    def dump(self):
+
+        if self.c.request:
+            self.print_header(request = True)
+            self.print_request()
+
+        if self.c.response:
+            self.print_header(response = True)
+            self.print_response()
+
 
     def print_header(self, request = False, response = False):
         label = "UNKNOWN"
@@ -249,10 +287,18 @@ class HttpDumper(object):
         response = self.c.response
 
         print '%s %s %s/%s' % (request.method, request.uri, 'HTTP', request.version), "\t",
-        if int(response.status) < 400:
-            ansi.echo("green [%s %s]" % (response.status, response.reason))
+
+        # print status of correlated response on top, if available
+        # TODO: refactor to separate method "print_conversation_header"
+        if response:
+            if int(response.status) < 400:
+                status_color = 'green'
+            else:
+                status_color = 'red'
+            ansi.echo("%s [%s %s]" % (status_color, response.status, response.reason))
         else:
-            ansi.echo("red   [%s %s]" % (response.status, response.reason))
+            print
+
         ansi.echo()
         print request.pack_hdr()
 
@@ -262,11 +308,14 @@ class HttpDumper(object):
             ansi.echo()
             print '\n'.join(request.postdata_list)
 
-        # pretty print decoded post data
-        if request.postdata_decoded:
-            ansi.echo("underline POST payload (decoded):")
-            ansi.echo()
-            pprint.pprint(request.postdata_decoded)
+            # pretty print decoded post data
+            if request.postdata_decoded:
+                ansi.echo("underline POST payload (decoded):")
+                ansi.echo()
+                pprint.pprint(request.postdata_decoded)
+
+        else:
+            print request.body
 
 
     def print_response(self):
@@ -282,6 +331,8 @@ class HttpDumper(object):
         ansi.echo()
         print response.pack_hdr()
 
+
+        # TODO: better dispatching by response content type
         if response.json_decoded:
             ansi.echo("underline JSON (pretty):")
             ansi.echo()
@@ -289,10 +340,13 @@ class HttpDumper(object):
                 #from pprint import pprint
                 #pprint(decoded)
                 import json
-                pretty = json.dumps(response.json_decoded, sort_keys=True, indent=4)
                 #pretty = json.dumps(decoded, sort_keys=False)
+                #pretty = json.dumps(response.json_decoded, sort_keys=True, indent=4)
+                pretty = json.dumps(response.json_decoded, sort_keys=False, indent=4)  # TODO: make "sort_keys" configurable
                 print pretty
                 #ansi.echo("@50;40")
+        else:
+            print response.body
 
         if response.errors:
             ansi.echo("red")
