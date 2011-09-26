@@ -7,6 +7,7 @@ import nids
 from multiprocessing import Process
 from http import HttpArtifact
 from pprint import pprint
+from sanchez import config
 
 TCP_END_STATES = (nids.NIDS_CLOSE, nids.NIDS_TIMEOUT, nids.NIDS_RESET)
 
@@ -36,7 +37,7 @@ class Sniffer(Process):
         """
         """
 
-        print "network sniffer process started, pid=%s" % self.pid
+        print "network sniffer started, pid=%s" % self.pid
 
         # apply BPF filter
         # see http://biot.com/capstats/bpf.html
@@ -100,45 +101,22 @@ class Sniffer(Process):
             #request_raw   = tcp.server.data[tcp.server.offset:tcp.server.offset+tcp.server.count_new]
             #response_raw  = tcp.client.data[tcp.client.offset:tcp.client.offset+tcp.client.count_new]
             if self.TRACE:
-                print
-                print "-" * 42
-                print list(tcp.addr), tcp.nids_state
-                print "server: count={0}, count_new={1}, offset={2}".format(tcp.server.count, tcp.server.count_new, tcp.server.offset)
-                print "client: count={0}, count_new={1}, offset={2}".format(tcp.client.count, tcp.client.count_new, tcp.client.offset)
+                self.dump_header('DATA', tcp)
             #print "request:\n", "'%s'" % request_raw
             #print "response:\n", "'%s'" % response_raw
 
             """
-            def dump(bucket):
-                if bucket.count_new:
-                    start = bucket.count - bucket.count_new
-                    payload = bucket.data[start:bucket.count]
+            def dump(channel):
+                if channel.count_new:
+                    start = channel.count - channel.count_new
+                    payload = channel.data[start:channel.count]
                     return payload
             print "request:\n", "'%s'" % dump(tcp.server)
             print "response:\n", "'%s'" % dump(tcp.client)
             """
 
-            def capture(kind, bucket):
-                key = tuple([tcp.addr, kind])
-                if bucket.count_new > 0:
-                    start = bucket.count - bucket.count_new
-                    payload = bucket.data[start:bucket.count]
-                    self.data.setdefault(key, '')
-                    self.data[key] += payload
-
-                elif self.data.has_key(key):
-                    if self.TRACE:
-                        print
-                        print "=" * 42
-                        print key, "\n", self.data[key]
-
-                    #artifact = (key, self.data[key])
-                    artifact = HttpArtifact(tcp.addr, kind, self.data[key])
-                    self.pipe.send(artifact)
-                    del self.data[key]
-
-            capture('request', tcp.server)
-            capture('response', tcp.client)
+            self.capture('request', tcp, tcp.server)
+            self.capture('response', tcp, tcp.client)
 
             return
             #if request_raw:
@@ -176,7 +154,14 @@ class Sniffer(Process):
             #self.pipe.send(payload)
 
         elif tcp.nids_state in TCP_END_STATES:
+
+            if self.TRACE:
+                self.dump_header('TERM', tcp)
+
+            self.capture('response', tcp, tcp.client)
+
             return
+
             #print "========= FINISH:", list(tcp.addr), tcp.nids_state
             #return
             #print "get_pkt_ts-end:", nids.get_pkt_ts(), str(tcp.addr)
@@ -201,6 +186,75 @@ class Sniffer(Process):
         except Exception, e:
             print "Exception in sanchez.sniffer.tcp_stream_handler:", e
 
+
+    def capture(self, kind, tcp, channel):
+
+        key = tuple([tcp.addr, kind])
+
+        if channel.count_new > 0:
+            start = channel.count - channel.count_new
+            payload = channel.data[start:channel.count]
+            self.data.setdefault(key, '')
+            self.data[key] += payload
+
+            if kind == 'response' and config.http.response_check_keepalive:
+                payload = self.data[key]
+                if self.introspect_response_ready(payload):
+                    self.artifact_ready(tcp.addr, kind, key)
+
+        elif self.data.has_key(key):
+            if self.TRACE:
+                self.dump_data(kind, key)
+            self.artifact_ready(tcp.addr, kind, key)
+
+    def artifact_ready(self, address, kind, key):
+        #artifact = (key, self.data[key])
+        artifact = HttpArtifact(address, kind, self.data[key])
+        self.pipe.send(artifact)
+        del self.data[key]
+
+    def introspect_response_ready(self, payload):
+        # http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.13
+        # http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.4
+        if payload.startswith('HTTP/1.1 1') or payload.startswith('HTTP/1.1 204') or payload.startswith('HTTP/1.1 304'):
+            return True
+
+        else:
+
+            def get_content_length_header():
+                p1 = payload[:32768].lower().find('content-length: ')
+                if p1 != -1:
+                    p2 = payload[p1:32768].find('\r\n')
+                    if p2 != -1:
+                        fragment = payload[p1:p1+p2]
+                        content_length_str = fragment.lower().replace('content-length: ', '')
+                        content_length = int(content_length_str)
+                        return content_length
+
+            def get_content_length_real():
+                p1 = payload.find('\r\n\r\n')
+                if p1 != -1:
+                    content_length = len(payload[p1+4:])
+                    return content_length
+
+            #print get_content_length_header(), get_content_length_real()
+            if get_content_length_header() == get_content_length_real():
+                return True
+
+    def dump_get_separator(self, label, char='-'):
+        return '-' * 21 + ' ' + label + ' ' + '-' * 21
+
+    def dump_header(self, label, tcp):
+        print
+        print self.dump_get_separator(label, '-')
+        print list(tcp.addr), tcp.nids_state
+        print "server: count={0}, count_new={1}, offset={2}".format(tcp.server.count, tcp.server.count_new, tcp.server.offset)
+        print "client: count={0}, count_new={1}, offset={2}".format(tcp.client.count, tcp.client.count_new, tcp.client.offset)
+
+    def dump_data(self, kind, key):
+        print
+        print self.dump_get_separator(kind, '=')
+        print key, "\n", self.data[key]
 
     def drop_root_privileges(self):
         # TODO: check this out
