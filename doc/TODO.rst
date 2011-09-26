@@ -1,6 +1,8 @@
 TODO
 ====
 
+- [o] send changes for pynids-0.6.2 upstream (to jan oberheide)
+
 ::
 
   (x) raw http pcap sniffer with tcp flow reassembling
@@ -21,7 +23,4 @@ TODO
       (o) by header
   (o) mode control
   (o) ui (using twisted.conch)
-  (o) anomaly detection
-      +-content-length
-      +-invalid-headers
   (o) delaying proxy

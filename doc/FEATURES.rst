@@ -17,14 +17,13 @@ HTTP message decoding / display
 - Output modes
     - [x] Plain ASCII
         - [o] with and without ANSI coloring
-    - [o] HTML
-        - [o] just reformatted from ASCII
+    - [o] Static HTML
+        - [o] just converted from ANSI
         - [o] with navigable anchors between conversation-index on top and conversation-details at the bottom
         - [o] by drilling into conversations with DHTML
     - [o] ncurses-based
-        - [o] display a list of http conversations which you can drill down into
         - [o] fields of list can be customized (e.g.: address, url, response code)
-    - [o] Rich GUI
+	- [o] Straight into database / pcap
 
 - [o] Filtering by various criteria
     - [x] BPF filters
@@ -39,10 +38,29 @@ HTTP message decoding / display
 
             SELECT * FROM requests WHERE header_name="User-Agent" AND header_value="... MSIE 8.0 ...";
 
+- [o] Interactive mode
+	- [o] ncurses-based
+    	- [o] display a list of http conversations which you can drill down into
+		- [o] apply filters dynamically by moving around and pressing control keys
+			- a: accept
+			- r: reject
+    - [/] Rich GUI => Okay, just use Wireshark!
+
+
+
 - [o] Analysis
     - [o] HTTP spec verification: HTTP/1.0, HTTP/1.1
+		- [o] Check for invalid headers
 	- [o] Anomaly detection
-    - [o] Forensics: save and load sessions
+		- [o] Check if delivered content matches the designated Content-Type header
+		- [o] Check if length of delivered content matches the Content-Length header
+		- [o] Verify that certain attributes inside JSON payloads match defined patterns
+		- [o] Verify that all requests/responses carry certain headers with certain values (e.g. for CSRF protection)
+    - [o] Forensics: save and load sessions (pcap)
+	- [o] Comparisons: save, replay and compare sessions
+
+- [o] Visualization
+	- [o] Generate dot files from conversations
 
 - [o] Plugins to add additional custom decoding steps et al.
 
