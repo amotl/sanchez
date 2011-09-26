@@ -13,7 +13,8 @@ from multiprocessing import Pipe
 from sanchez import config, __VERSION__
 from sanchez.sniffer import Sniffer
 from sanchez.tcp import HttpCollector
-from sanchez.http import HttpDecoderChain, HttpDumper, HttpResponseDecoder
+from sanchez.http import HttpDecoderChain, HttpResponseDecoder
+from sanchez.http import HttpDetailDumper, HttpUrlDumper
 from sanchez.utils import ansi
 
 
@@ -39,8 +40,8 @@ def read_commandline_arguments():
         """
         sys.exit()
 
-    if len(sys.argv) == 2:
-        config.interface_name = sys.argv[1]
+    #if len(sys.argv) == 2:
+    #    config.interface_name = sys.argv[1]
 
 
 def print_startup_header():
@@ -61,6 +62,10 @@ def print_startup_header():
 
 
 def boot():
+
+    from monkey import patch_dpkt
+    patch_dpkt()
+
     # start sniffer process (uses pynids for tcp stream reassembly)
     # connect it by Pipe
     parent_conn, child_conn = Pipe()
@@ -82,7 +87,10 @@ def boot():
 def http_dump_callback(conversation):
     # dump request- and response messages to stdout,
     # possibly enriched from intermediary decoder steps
-    dumper = HttpDumper(conversation)
+    dumper_class = HttpDetailDumper
+    if config.http.dumper and config.http.dumper == 'url':
+        dumper_class = HttpUrlDumper
+    dumper = dumper_class(conversation)
     dumper.dump()
 
 
