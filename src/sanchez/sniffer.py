@@ -158,6 +158,7 @@ class Sniffer(Process):
             if self.TRACE:
                 self.dump_header('TERM', tcp)
 
+            self.capture('request', tcp, tcp.server)
             self.capture('response', tcp, tcp.client)
 
             return
@@ -197,9 +198,10 @@ class Sniffer(Process):
             self.data.setdefault(key, '')
             self.data[key] += payload
 
-            if kind == 'response' and config.http.response_check_keepalive:
+            if config.http.response_check_keepalive \
+                or config.sniffer.introspect_messages:
                 payload = self.data[key]
-                if self.introspect_response_ready(payload):
+                if self.is_message_complete(payload):
                     self.artifact_ready(tcp.addr, kind, key)
 
         elif self.data.has_key(key):
@@ -213,7 +215,7 @@ class Sniffer(Process):
         self.pipe.send(artifact)
         del self.data[key]
 
-    def introspect_response_ready(self, payload):
+    def is_message_complete(self, payload):
         # http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.13
         # http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.4
         if payload.startswith('HTTP/1.1 1') or payload.startswith('HTTP/1.1 204') or payload.startswith('HTTP/1.1 304'):
@@ -238,7 +240,9 @@ class Sniffer(Process):
                     return content_length
 
             #print get_content_length_header(), get_content_length_real()
-            if get_content_length_header() == get_content_length_real():
+            header_length = get_content_length_header()
+            real_length = get_content_length_real()
+            if header_length != 0 and header_length is not None and header_length == real_length:
                 return True
 
     def dump_get_separator(self, label, char='-'):
