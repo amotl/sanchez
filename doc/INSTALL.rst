@@ -19,6 +19,10 @@ libnet
 
 pynids
 ------
+HACK::
+
+    cp downloads/nidsmodule.so /opt/local/Library/Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages/nidsmodule.so
+
 ::
 
     wget http://jon.oberheide.org/pynids/downloads/pynids-0.6.1.tar.gz
