@@ -5,6 +5,7 @@ from multiprocessing import Process
 from sanchez.http import HttpConversation
 from sanchez import config
 #from http import HttpArtifact
+from sanchez.utils import ansi
 
 class HttpCollector(Process):
 
@@ -34,7 +35,7 @@ class HttpCollector(Process):
                 elif artifact.kind == 'response':
                     response = dpkt.http.Response(artifact.data)
             except dpkt.UnpackError, e:
-                print "dpkt.UnpackError (problem decoding http):", e
+                ansi.echo("dpkt.UnpackError (problem decoding http %s): %s" % (artifact.kind, e))
                 continue
 
 
