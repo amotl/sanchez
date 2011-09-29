@@ -348,6 +348,9 @@ class HttpResponseDecoder(object):
 
         if 'json' in response.headers.get('content-type', '').lower():
             try:
+                content_length = response.headers.get('content-length')
+                if content_length is not None and int(content_length) == 0:
+                    return False
                 import json
                 body = response.body
                 if config.http.decode.body.json_obfuscation and body.startswith(config.http.decode.body.json_obfuscation):
