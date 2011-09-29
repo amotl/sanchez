@@ -461,22 +461,22 @@ class HttpDetailDumper(object):
             ansi.echo('none')
 
     def print_request_line(self):
+        print self.c.request_line, "\t", self.format_response_status(with_ansi = True)
 
-        response = self.c.response
-
-        print self.c.request_line, "\t",
-
+    def format_response_status(self, with_ansi = False):
         # print status of correlated response on top, if available
         # TODO: refactor to separate method "print_conversation_header"
+        result = ''
+        response = self.c.response
         if response is not None:
-            if int(response.status) < 400:
-                status_color = 'green'
-            else:
-                status_color = 'red'
-            ansi.echo("%s [%s %s]" % (status_color, response.status, response.reason))
-            ansi.echo("none")
-        else:
-            print
+            result = "[%s %s]" % (response.status, response.reason)
+            if with_ansi:
+                if int(response.status) < 400:
+                    status_color = 'green'
+                else:
+                    status_color = 'red'
+                result = ansi.get("%s %s" % (status_color, result), end = '') + ansi.get('none', end = '')
+        return result
 
     def print_request(self):
 
@@ -501,6 +501,8 @@ class HttpDetailDumper(object):
 
         else:
             print request.body
+
+        self.print_errors(request)
 
     def print_response(self):
 
@@ -538,9 +540,14 @@ class HttpDetailDumper(object):
             else:
                 print response.body
 
-        if response.errors:
+        self.print_errors(response)
+
+
+    def print_errors(self, message):
+
+        if message.errors:
             ansi.echo("red")
-            for error in response.errors:
+            for error in message.errors:
                 print error
             ansi.echo()
 
@@ -556,4 +563,5 @@ class HttpUrlDumper(HttpDetailDumper):
         self.c = conversation
 
     def dump(self):
-        self.print_request_line()
+        #print dir('')
+        print self.c.request_line.ljust(50), '\t', self.format_response_status(with_ansi = True)
