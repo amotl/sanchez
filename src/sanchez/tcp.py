@@ -35,7 +35,7 @@ class HttpCollector(Process):
                 elif artifact.kind == 'response':
                     response = dpkt.http.Response(artifact.data)
             except dpkt.UnpackError, e:
-                ansi.echo("dpkt.UnpackError (problem decoding http %s): %s" % (artifact.kind, e))
+                ansi.echo("red ERROR: dpkt.UnpackError (problem decoding http %s): %s" % (artifact.kind, e))
                 continue
 
 
@@ -46,19 +46,21 @@ class HttpCollector(Process):
             else:
                 self.process_conversation(conversation)
 
-    def correlate_conversation(self, conversation):
-        #print (conversation.seqno, conversation.addr, conversation.request, conversation.response) #; return
-        if conversation.request:
-            self.conversations[conversation.addr] = conversation
-        elif conversation.response:
-            conversation_master = self.conversations.get(conversation.addr)
-            if conversation_master:
-                conversation_master.response = conversation.response
-                #print conversation_master.seqno, conversation.seqno
-                if abs(conversation_master.seqno - conversation.seqno) > 1:
-                    conversation_master.response.correlated = True
-                del self.conversations[conversation.addr]
-                self.process_conversation(conversation_master)
+    def correlate_conversation(self, half):
+        #print (half.seqno, half.addr, half.request, half.response) #; return
+        if half.request:
+            self.conversations[half.addr] = half
+        elif half.response:
+            full = self.conversations.get(half.addr)
+            if full:
+                full.response = half.response
+                if abs(full.seqno - half.seqno) > 1:
+                    full.response.correlated = True
+                del self.conversations[half.addr]
+                self.process_conversation(full)
+            else:
+                ansi.echo("red WARNING: Correlator received the following response without having an associated request")
+                self.process_conversation(half)
 
     def process_conversation(self, conversation):
         """
