@@ -57,6 +57,8 @@ class HttpConversation(object):
     def request(self, obj):
         if not obj: return
         obj.steps = []
+        if not hasattr(obj, 'errors'):
+            obj.errors = []
         if not hasattr(obj, 'postdata_dict'):
             obj.postdata_dict = {}
         if not hasattr(obj, 'postdata_list'):
@@ -377,17 +379,22 @@ class HttpRequestDecoder(object):
 
         # pretty print post data
         if request.headers.get('content-type', '').lower().startswith('application/x-www-form-urlencoded'):
-            post_parts = request.body.split('&')
-            postdata_list = []
-            for part in post_parts:
-                key, value = part.split('=', 1)
-                entry = "%s: %s" % (key, urllib.unquote_plus(value))
-                postdata_list.append(entry)
+            try:
+                post_parts = request.body.split('&')
+                postdata_list = []
+                for part in post_parts:
+                    key, value = part.split('=', 1)
+                    entry = "%s: %s" % (key, urllib.unquote_plus(value))
+                    postdata_list.append(entry)
 
-            request.postdata_dict = urlparse.parse_qs(request.body)
-            request.postdata_list = postdata_list
+                request.postdata_dict = urlparse.parse_qs(request.body)
+                request.postdata_list = postdata_list
 
-            return True
+                return True
+
+            except Exception, e:
+                request.errors.append("Could not parse 'x-www-form-urlencoded' data: %s" % (e))
+                return False
 
 
 class HttpDetailDumper(object):
