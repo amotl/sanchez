@@ -315,29 +315,45 @@ class HttpResponseDecoder(object):
 
         # Content-Type: text/html; charset=iso-8859-1
 
+        charset = self.parse_content_type_charset()
+        if charset:
+            try:
+                response.body = response.body.decode(charset)
+            except Exception, e:
+                response.errors.append("Could not decode body from charset encoding '%s': %s" % (charset, e))
+                return False
+            response.steps.append('charset-decoded')
+            return True
+
+        return False
+
+    def parse_content_type_charset(self):
+
+        response = self.c.response
+
         try:
             content_type_raw = response.headers.get('content-type', '').lower()
-            parts = content_type_raw.split(';')
+            if not content_type_raw: return
+            attributes = self._parse_header_attributes(content_type_raw)
+            if attributes and attributes.has_key('charset'):
+                charset = attributes['charset']
+                return charset
+
+        except Exception, e:
+            response.errors.append("Could not parse ’charset' from 'Content-Type' header: %s" % (e))
+
+    def _parse_header_attributes(self, header_line):
+        try:
+            parts = header_line.split(';')
             if len(parts) > 1:
                 parts = [part.strip() for part in parts]
                 attributes = {}
                 for attrib_raw in parts[1:]:
                     name, value = attrib_raw.split('=')
                     attributes[name.strip()] = value.strip()
-                if attributes.has_key('charset'):
-                    charset = attributes['charset']
-                    try:
-                        response.body = response.body.decode(charset)
-                    except Exception, e:
-                        response.errors.append("Could not decode body from charset '%s': %s" % (charset, e))
-                        return False
-                    response.steps.append('charset-decoded')
-                    return True
-
+                return attributes
         except Exception, e:
-            response.errors.append("Could not decode body (charset): %s" % (e))
-            #raise
-            return False
+            response.errors.append("Could not parse attributes from header line '%s': %s" % (header_line, e))
 
     def decode_json(self):
 
