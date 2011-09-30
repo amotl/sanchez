@@ -14,7 +14,6 @@ from sanchez import config, __VERSION__
 from sanchez.sniffer import Sniffer
 from sanchez.tcp import HttpCollector
 from sanchez.http import HttpDecoderChain, HttpResponseDecoder
-from sanchez.http import HttpDetailDumper, HttpUrlDumper
 from sanchez.utils import ansi
 
 
@@ -85,11 +84,27 @@ def boot():
 
 
 def http_dump_callback(conversation):
-    # dump request- and response messages to stdout,
-    # possibly enriched from intermediary decoder steps
-    dumper_class = HttpDetailDumper
-    if config.http.dumper and config.http.dumper == 'url':
+    """
+    Dump request- and response messages to stdout,
+    possibly enriched from intermediary decoder steps.
+    """
+
+    # default dumper: ngrep++ mode
+    if not config.http.dumper:
+        config.http.dumper = 'detail'
+
+    # choose different dumper by config
+    if config.http.dumper == 'detail':
+        from sanchez.view.basic import HttpDetailDumper
+        dumper_class = HttpDetailDumper
+    elif config.http.dumper == 'url':
+        from sanchez.view.basic import HttpUrlDumper
         dumper_class = HttpUrlDumper
+    elif config.http.dumper == 'session':
+        from sanchez.view.curses import HttpSessionView
+        dumper_class = HttpSessionView
+
+    # run it
     dumper = dumper_class(conversation)
     dumper.dump()
 
