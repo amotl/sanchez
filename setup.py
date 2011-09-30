@@ -32,7 +32,7 @@ setup (
     zip_safe = False,
     entry_points = {
         'console_scripts': [
-            'sanchez = sanchez.basic:main',
+            'sanchez = sanchez.app:main',
         ],
     },
 )
