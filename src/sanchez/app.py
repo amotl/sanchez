@@ -101,7 +101,7 @@ def http_dump_callback(conversation):
         from sanchez.view.basic import HttpUrlDumper
         dumper_class = HttpUrlDumper
     elif config.http.dumper == 'session':
-        from sanchez.view.curses import HttpSessionView
+        from sanchez.view.ui_curses import HttpSessionView
         dumper_class = HttpSessionView
 
     # run it
