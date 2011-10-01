@@ -30,6 +30,7 @@ class Sniffer(Process):
         self.interface_name = interface_name
         self.bpf_filter = bpf_filter
         self.data = {}
+        self.times = {}
         self.TRACE = False
         Process.__init__(self)
 
@@ -119,6 +120,8 @@ class Sniffer(Process):
             self.capture('response', tcp, tcp.client)
 
             return
+
+
             #if request_raw:
             #    tcp.discard(len(request_raw))
             #if response_raw:
@@ -193,6 +196,9 @@ class Sniffer(Process):
         key = tuple([tcp.addr, kind])
 
         if channel.count_new > 0:
+            if not self.times.has_key(key):
+                self.times.setdefault(key, {})
+                self.times[key]['begin'] = nids.get_pkt_ts()
             start = channel.count - channel.count_new
             payload = channel.data[start:channel.count]
             self.data.setdefault(key, '')
@@ -210,10 +216,13 @@ class Sniffer(Process):
             self.artifact_ready(tcp.addr, kind, key)
 
     def artifact_ready(self, address, kind, key):
+        self.times[key]['finish'] = nids.get_pkt_ts()
+        #print "times:", self.times[key]
         #artifact = (key, self.data[key])
-        artifact = HttpArtifact(address, kind, self.data[key])
+        artifact = HttpArtifact(address, kind, self.data[key], self.times[key]['begin'], self.times[key]['finish'])
         self.pipe.send(artifact)
         del self.data[key]
+        del self.times[key]
 
     def is_message_complete(self, payload):
         # http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.13

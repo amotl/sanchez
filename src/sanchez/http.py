@@ -16,10 +16,12 @@ class HttpArtifact(object):
     magic triple as of (addr, kind [request, response], data)
     """
 
-    def __init__(self, addr, kind, data):
+    def __init__(self, addr, kind, data, begin, finish):
         self.addr = addr
         self.kind = kind
         self.data = data
+        self.begin = begin
+        self.finish = finish
 
     def __str__(self):
         data = [
@@ -55,7 +57,15 @@ class HttpConversation(object):
     @request.setter
     def request(self, obj):
         if not obj: return
+
         obj.steps = []
+
+        if not hasattr(obj, 'time_begin'):
+            obj.time_begin = None
+        if not hasattr(obj, 'time_finish'):
+            obj.time_finish = None
+
+        # is this really needed?
         if not hasattr(obj, 'errors'):
             obj.errors = []
         if not hasattr(obj, 'postdata_dict'):
@@ -73,7 +83,15 @@ class HttpConversation(object):
     @response.setter
     def response(self, obj):
         if not obj: return
+
         obj.steps = []
+
+        if not hasattr(obj, 'time_begin'):
+            obj.time_begin = None
+        if not hasattr(obj, 'time_finish'):
+            obj.time_finish = None
+
+        # is this really needed?
         if not hasattr(obj, 'errors'):
             obj.errors = []
         if not hasattr(obj, 'correlated'):

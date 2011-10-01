@@ -32,8 +32,12 @@ class HttpCollector(Process):
             try:
                 if artifact.kind == 'request':
                     request = dpkt.http.Request(artifact.data)
+                    request.time_begin = artifact.begin
+                    request.time_finish = artifact.finish
                 elif artifact.kind == 'response':
                     response = dpkt.http.Response(artifact.data)
+                    response.time_begin = artifact.begin
+                    response.time_finish = artifact.finish
             except dpkt.UnpackError, e:
                 ansi.echo("red ERROR: dpkt.UnpackError (problem decoding http %s): %s" % (artifact.kind, e))
                 continue
