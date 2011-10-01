@@ -60,6 +60,7 @@ def print_startup_header():
     print
 
 
+curses_session = None
 def boot():
 
     from monkey import patch_dpkt
@@ -76,9 +77,21 @@ def boot():
     collector = HttpCollector(sniffer_pipe           = parent_conn,
                               processing_chain_class = HttpDecoderChain,
                               final_callback         = http_dump_callback)
-    collector.start()
+
+    if config.http.dumper in ['top', 'session']:
+        from sanchez.view.ui_curses import CursesSession
+        def boot_real(csession):
+            global curses_session
+            curses_session = csession
+            print_startup_header()
+            collector.start()
+        curses_session = CursesSession(callback = boot_real)
+    else:
+        print_startup_header()
+        collector.start()
 
     # wait for sniffer to terminate
+    #print "================ before join ================"
     sniffer.join()
     collector.join()
 
@@ -88,6 +101,8 @@ def http_dump_callback(conversation):
     Dump request- and response messages to stdout,
     possibly enriched from intermediary decoder steps.
     """
+
+    dumper = None
 
     # default dumper: ngrep++ mode
     if not config.http.dumper:
@@ -100,12 +115,18 @@ def http_dump_callback(conversation):
     elif config.http.dumper == 'url':
         from sanchez.view.basic import HttpUrlDumper
         dumper_class = HttpUrlDumper
+    elif config.http.dumper == 'top':
+        from sanchez.view.ui_curses import HttpTopDumper
+        dumper = HttpTopDumper(conversation, curses_session)
     elif config.http.dumper == 'session':
         from sanchez.view.ui_curses import HttpSessionView
-        dumper_class = HttpSessionView
+        dumper = HttpSessionView(conversation, curses_session)
 
     # run it
-    dumper = dumper_class(conversation)
+    if not dumper:
+        dumper = dumper_class(conversation)
+
+    # run it
     dumper.dump()
 
 
@@ -119,7 +140,7 @@ def main():
     register_plugins()
     load_config()
     read_commandline_arguments()
-    print_startup_header()
+    #print_startup_header()
     boot()
 
 if __name__ == '__main__':

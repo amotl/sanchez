@@ -66,7 +66,7 @@ class HttpDetailDumper(object):
             ansi.echo('none')
 
     def print_request_line(self):
-        print self.c.request_line, "\t", self.format_response_status(with_ansi = True), '\t', self.format_duration()
+        print self.c.request_line, "\t", self.format_response_status(with_ansi = True), '\t', self.format_duration(with_ansi = True)
 
     def format_response_status(self, with_ansi = False):
         # print status of correlated response on top, if available
@@ -83,10 +83,13 @@ class HttpDetailDumper(object):
                 result = ansi.get("%s %s" % (status_color, result), end = '') + ansi.get('none', end = '')
         return result
 
-    def format_duration(self):
+    def format_duration(self, with_ansi = False):
         try:
-            duration_ms = (self.c.response.time_finish - self.c.request.time_begin) * 1000
-            return ansi.get('yellow') + (str(int(duration_ms)) + 'ms').rjust(6) + ansi.get('none')
+            duration_str = (str(self.c.duration) + 'ms').rjust(6)
+            if with_ansi:
+                return ansi.get('yellow') + duration_str + ansi.get('none')
+            else:
+                return duration_str
         except Exception as ex:
             ansi.echo("red WARNING: Could not compute duration of conversation, error was '%s'" % ex)
             return ''
@@ -177,4 +180,4 @@ class HttpUrlDumper(HttpDetailDumper):
 
     def dump(self):
         #print dir('')
-        print self.c.request_line.ljust(50), '\t', self.format_response_status(with_ansi = True), '\t', self.format_duration()
+        print self.c.request_line.ljust(50), '\t', self.format_response_status(with_ansi = True), '\t', self.format_duration(with_ansi = True)

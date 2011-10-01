@@ -106,10 +106,19 @@ class HttpConversation(object):
         return '%s %s %s/%s' % (request.method, request.uri, 'HTTP', request.version)
 
     @property
+    def request_line_short(self):
+        request = self.request
+        return '%s %s' % (request.method, request.uri)
+
+    @property
     def response_line(self):
         response = self.response
         return '%s/%s %s %s' % ('HTTP', response.version, response.status, response.reason)
 
+    @property
+    def duration(self):
+        duration_ms = int((self.response.time_finish - self.request.time_begin) * 1000)
+        return duration_ms
 
 class HttpDecoderChain(object):
     """
